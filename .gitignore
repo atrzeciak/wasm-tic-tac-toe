@@ -1,0 +1,14 @@
+# cmake
+cmake-bld/
+cmake-build/
+
+# vscode 
+.devcontainer/
+.vscode/*
+!.vscode/cmake-kits.json
+*.code-workspace
+
+# build and sdk
+dist/
+emsdk/
+build/
