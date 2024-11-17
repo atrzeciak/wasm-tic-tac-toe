@@ -1,0 +1,15 @@
+services:
+  wasm-tic-tac-toe:
+    platform: linux/amd64
+    image: local/wasm-tic-tac-toe
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    working_dir: /workarea
+    volumes:
+      - ..:/workarea:delegated
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    command: /bin/sh -c "while sleep 1000; do :; done"

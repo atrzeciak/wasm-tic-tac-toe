@@ -3,7 +3,6 @@ cmake-bld/
 cmake-build/
 
 # vscode 
-.devcontainer/
 .vscode/*
 !.vscode/cmake-kits.json
 *.code-workspace
