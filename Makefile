@@ -25,8 +25,11 @@ build:
 .PHONY: clean
 clean:
 	cmake --build $(CMAKE_BUILD_DIR) --verbose --target clean
-	rm -rf $(CURDIR)/dist
+
+.PHONY: distclean
+distclean:
+	rm -rf $(CMAKE_BUILD_DIR)
 
 .PHONY: server
 server:
-	(cd $(CURDIR)/dist && python3 -m http.server)
+	python3 -m http.server -d $(CURDIR)/dist
