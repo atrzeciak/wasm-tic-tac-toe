@@ -35,3 +35,7 @@ distclean:
 .PHONY: server
 server:
 	python3 -m http.server -d $(CURDIR)/dist
+
+.PHONY: publish
+publish:
+	git subtree push --prefix dist origin gh-pages
