@@ -9,17 +9,18 @@ all:
 
 $(CMAKE_BUILD_DIR):
 	mkdir -p $(CMAKE_BUILD_DIR)
-
-configure: $(CMAKE_BUILD_DIR)
-	mkdir -p $(CMAKE_BUILD_DIR)
 	cmake \
 	  -DCMAKE_TOOLCHAIN_FILE=$(EMSCRIPTEN_CMAKE) \
 	  -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
 	  -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) \
 	  -S$(CURDIR) -B$(CMAKE_BUILD_DIR) -G Ninja
 
+configure:
+	rm -rf $(CMAKE_BUILD_DIR)
+	$(MAKE) $(CMAKE_BUILD_DIR)
+
 .PHONY: build
-build:
+build: $(CMAKE_BUILD_DIR)
 	cmake --build $(CMAKE_BUILD_DIR) --config $(BUILD_TYPE) --target all --verbose
 
 .PHONY: clean
@@ -29,6 +30,7 @@ clean:
 .PHONY: distclean
 distclean:
 	rm -rf $(CMAKE_BUILD_DIR)
+	rm -rf dist
 
 .PHONY: server
 server:

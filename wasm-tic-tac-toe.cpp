@@ -1,5 +1,6 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_ttf.h>
 #else
@@ -151,6 +152,18 @@ class TicTacToe {
       return DIAGONAL_BOTTOMLEFT;
     }
     return NONE;
+  }
+
+  int boardCount() {
+    int cnt = 0;
+    for (int col = 0; col < NUM_COLS; col++) {
+      for (int row = 0; row < NUM_ROWS; row++) {
+        if (cellState(col, row) != CELL_EMPTY) {
+          cnt++;
+        }
+      }
+    }
+    return cnt;
   }
 
   bool isBoardFull() {
@@ -317,8 +330,8 @@ class TicTacToe {
     makeMove(a[r], p);
   }
 
-  bool pickCorner(const CellState &p) {
-    // Try to take one of the corners, if they are free.
+  bool pickCorner(const CellState &p, bool force) {
+    // Try to take one of the corners, if they are free and no moves
     // 0[0,0], 1[1,0], 2[2,0]
     // 3[0,1], 4[1,1], 5[2,1]
     // 6[0,2], 7[1,2], 8[2,2]
@@ -334,6 +347,9 @@ class TicTacToe {
     }
     if (cellState(2, 2) == CELL_EMPTY) {
       corners.push_back(boardIndex(2, 2));
+    }
+    if (!force && 4 != corners.size()) {
+      return false;
     }
     if (corners.empty()) {
       return false;
@@ -418,10 +434,12 @@ class TicTacToe {
       }
     }
 
-    if (!pickCorner(p)) {
+    if (!pickCorner(p, false)) {
       if (!pickCenter(p)) {
         if (!pickSide(p)) {
-          std::cout << "hmm, is the board full" << std::endl;
+          if (!pickCorner(p, true)) {
+            std::cout << "hmm, is the board full" << std::endl;
+          }
         }
       }
     }
@@ -526,7 +544,7 @@ class TicTacToe {
       SDL_Rect rect;
       switch (d_winnerLine) {
         case NONE:
-          // tie
+          // Draw
           break;
         case VERTICAL_LEFT:
           // draw line
@@ -618,7 +636,7 @@ class TicTacToe {
       }
       if (d_gameWinner == CELL_EMPTY) {
         textColor(255, 255, 255);
-        textCentered("Tie", d_display_width / 2, d_display_height / 2);
+        textCentered("Draw", d_display_width / 2, d_display_height / 2);
       }
 
       textColor(0, 255, 0, 0);

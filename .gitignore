@@ -1,6 +1,7 @@
 # cmake
 cmake-bld/
 cmake-build/
+cmake-bld.local/
 
 # vscode 
 .vscode/*
