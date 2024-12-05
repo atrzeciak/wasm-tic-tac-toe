@@ -9,6 +9,5 @@ cmake-bld.local/
 *.code-workspace
 
 # build and sdk
-dist/
 emsdk/
 build/
