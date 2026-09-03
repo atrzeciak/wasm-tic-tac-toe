@@ -1,5 +1,20 @@
+# -*- makefile -*-
+# Recipes run under bash and stop on the first failing command, unset
+# variable or broken pipeline; no implicit rules; half-built files are removed.
+SHELL:=bash
+.SHELLFLAGS:=-eu -o pipefail -c
+.DELETE_ON_ERROR:
+.SUFFIXES:
+MAKEFLAGS+=--no-builtin-rules --warn-undefined-variables
+.DEFAULT_GOAL:=all
 
-BUILD_TYPE:=Release
+# Environment inputs that are usually unset; defaulted so
+# --warn-undefined-variables stays quiet.
+REMOTE_CONTAINERS?=
+DEVCONTAINER?=
+DISPLAY?=
+
+BUILD_TYPE?=Release
 # Build trees are named cmake-bld-<kit>.local so they line up with the VS Code
 # CMake Tools kits in .vscode/cmake-kits.json (see cmake.buildDirectory).
 CMAKE_BUILD_DIR:=cmake-bld-Emscripten.local
@@ -15,9 +30,20 @@ EMSDK_DIR?=/opt/emsdk
 EMSCRIPTEN_CMAKE?="$(EMSDK_DIR)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
 
 # The native binary is a Linux build, so `make run` runs it in the container
-# and opens its window on the host's X server over TCP. On macOS XQuartz must
-# accept network clients: `make xquartz-tcp` once, then restart XQuartz.
+# and opens its window on the host's X server.
+#   macOS: XQuartz over TCP; it must accept network clients (`make xquartz-tcp`
+#          once, then restart XQuartz).
+#   Linux: the host's X socket is mounted into the container.
+HOST_OS:=$(shell uname -s)
+ifeq ($(HOST_OS),Darwin)
 X11_DISPLAY?=host.docker.internal:0
+X11_ALLOW:=xhost +localhost
+X11_OPTS:=-e DISPLAY=$(X11_DISPLAY)
+else
+X11_DISPLAY?=$(DISPLAY)
+X11_ALLOW:=xhost +local:docker
+X11_OPTS:=-e DISPLAY=$(X11_DISPLAY) -v /tmp/.X11-unix:/tmp/.X11-unix
+endif
 
 # Detect whether make is already running inside the devcontainer. Any of:
 #   - VS Code / devcontainer CLI export REMOTE_CONTAINERS or DEVCONTAINER
@@ -52,7 +78,7 @@ COMPOSE:=docker compose -f .devcontainer/docker-compose.yml
 SERVICE:=wasm-tic-tac-toe
 RUN:=$(COMPOSE) run --rm $(SERVICE)
 SERVE:=$(COMPOSE) run --rm -p $(HTTP_PORT):$(HTTP_PORT) $(SERVICE)
-RUN_X11:=xhost +localhost >/dev/null && $(COMPOSE) run --rm -e DISPLAY=$(X11_DISPLAY) $(SERVICE)
+RUN_X11:=$(X11_ALLOW) >/dev/null && $(COMPOSE) run --rm $(X11_OPTS) $(SERVICE)
 endif
 
 .PHONY: all
@@ -124,8 +150,12 @@ run: native
 # "Allow connections from network clients" in XQuartz > Settings > Security).
 .PHONY: xquartz-tcp
 xquartz-tcp:
+ifeq ($(HOST_OS),Darwin)
 	defaults write org.xquartz.X11 nolisten_tcp -bool false
 	@echo "Restart XQuartz for this to take effect."
+else
+	$(error xquartz-tcp is macOS only; on $(HOST_OS) 'make run' uses the host X socket directly)
+endif
 
 .PHONY: server
 server:

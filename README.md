@@ -28,7 +28,9 @@ make run       # run the native binary in the container, window on the host
 
 `make run` needs an X server on the host. On macOS install XQuartz, run
 `make xquartz-tcp` once and restart XQuartz; the container then connects
-to it over TCP as `host.docker.internal:0` (override with `X11_DISPLAY=`).
+to it over TCP as `host.docker.internal:0`. On Linux the host's X socket is
+mounted into the container and your `$DISPLAY` is used. Override either
+with `X11_DISPLAY=`.
 
 Other targets:
 
