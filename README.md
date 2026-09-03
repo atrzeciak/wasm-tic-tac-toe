@@ -1,62 +1,66 @@
-
 # WebAssembly Tic-Tac-Toe
 
-A **Tic-Tac-Toe game** implemented in **C++** and compiled to **WebAssembly (WASM)**. This project showcases how C++ can be used to create interactive browser-based games with WebAssembly for fast, efficient performance.
+A Tic-Tac-Toe game written in C++ with SDL2, compiled to WebAssembly with
+Emscripten. The same source also builds as a native Linux binary for fast
+edit/debug cycles under gdb.
 
-## Features
+Play it live: [atrzeciak.github.io/wasm-tic-tac-toe](https://atrzeciak.github.io/wasm-tic-tac-toe)
 
-- **High Performance:** Core logic implemented in C++ and compiled to WebAssembly for near-native execution speed.
-- **Simple Gameplay:** A lightweight implementation of the classic Tic-Tac-Toe game.
-- **Cross-Browser Support:** Runs in any WebAssembly-compatible browser.
+## Prerequisites
 
-## Demo
+Docker (Docker Desktop on macOS/Windows, or the engine on Linux). The whole
+toolchain lives in the devcontainer image, which the first build creates:
+Emscripten (pinned in `.devcontainer/Dockerfile`), SDL2/SDL2_ttf, Ninja,
+clang-format, clang-tidy and shellcheck.
 
-Play the game live: [Tic-Tac-Toe WebAssembly Demo](https://atrzeciak.github.io/wasm-tic-tac-toe)
+## Build
 
-## Getting Started
-
-### Prerequisites
-
-To build and run this project locally, you will need:
-
-1. **Emscripten SDK** for compiling C++ to WebAssembly:
-   - Install the Emscripten SDK
-
-      ```bash
-      bash ./install-emscripten.sh
-      ```
-
-2. A web server to serve the compiled files (e.g., Python's HTTP server or Node.js-based servers).
-
-### InstallationCompile the project using Emscripten
+Every target runs inside the container. Run `make` from the host and it
+wraps the command in `docker compose run`; run it from a devcontainer shell
+(VS Code) and it runs directly.
 
 ```bash
-# Add emscripten tools to your path
-source emsdk/emsdk_env.sh
-
-# cmake and build
-mkdir build
-emcmake cmake -DCMAKE_BUILD_TYPE=Release -S. -B build -G Ninja
-cmake --build build --target all --verbose
+make build     # wasm: writes dist/index.html, index.js, index.wasm
+make native    # Linux binary: cmake-bld-native.local/wasm-tic-tac-toe
+make server    # serve dist/ on http://localhost:8000
 ```
 
-### Serve the project files
+Other targets:
 
 ```bash
-python3 -m http.server -d dist/
+make image     # rebuild the devcontainer image (after editing the Dockerfile)
+make lint      # clang-format --dry-run + shellcheck (same as CI)
+make tidy      # clang-tidy against the native compile database
+make format    # clang-format in place
+make distclean # remove both build trees and dist/
 ```
 
-### Open a browser, and navigate to [http://localhost:8000](http://localhost:8000)
+Pass `BUILD_TYPE=Debug` to keep DWARF in the `.wasm` and enable
+Emscripten's `SAFE_HEAP` and `ASSERTIONS`.
 
-### Usage
+## VS Code
 
-- Launch the game in your browser.
-- Play against a computer simple logic.
+Open the folder and choose "Reopen in Container". Two CMake Tools kits are
+configured:
+
+- **Emscripten**: builds into `cmake-bld-Emscripten.local`, same tree as
+  `make build`. Debug with F5 "Debug wasm in Chrome"; breakpoints in the
+  `.cpp` work through the WebAssembly DWARF Debugging extension.
+- **native**: builds into `cmake-bld-native.local`, same tree as
+  `make native`. The status-bar Run/Debug buttons launch it under gdb with
+  the window on the forwarded X display.
+
+## Deployment
+
+CI (`.github/workflows/ci.yml`) lints and builds on every PR and pushes
+`dist/` to GitHub Pages on every push to `main`. Nothing is published by
+hand; `dist/` is not tracked.
+
+## Resources
+
+`resources/convert.sh` regenerates the embedded image and font headers
+(`*_bmp.h`, `*_ttf.h`) from the PNG and TTF sources.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
-## Acknowledgments
-
-- Built using [Emscripten](https://emscripten.org/) to compile C++ into WebAssembly.
+[MIT](LICENSE).
