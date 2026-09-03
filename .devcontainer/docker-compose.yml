@@ -1,6 +1,12 @@
 services:
   wasm-tic-tac-toe:
-    platform: linux/amd64
+    # Always the Docker engine's own architecture: HOST_PLATFORM comes from
+    # .devcontainer/.env, written by host-platform.sh (run by the Makefile and
+    # by devcontainer.json's initializeCommand). An explicit platform here
+    # outranks DOCKER_DEFAULT_PLATFORM, so an exported linux/amd64 can't put an
+    # Apple Silicon Mac under Rosetta, where gdb can't ptrace and everything
+    # runs slower. The base image, emsdk and all apt packages ship arm64 too.
+    platform: ${HOST_PLATFORM:?run .devcontainer/host-platform.sh first}
     image: local/wasm-tic-tac-toe
     build:
       context: ..
@@ -8,8 +14,13 @@ services:
     working_dir: /workarea
     volumes:
       - ..:/workarea:delegated
+      # Keep Claude Code login and settings across container rebuilds.
+      - claude-config:/home/vscode/.claude
     cap_add:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
     command: /bin/sh -c "while sleep 1000; do :; done"
+
+volumes:
+  claude-config:

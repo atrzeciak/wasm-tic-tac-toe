@@ -1,0 +1,69 @@
+{
+  // Everything here shells out to the Makefile so the IDE, `make` and CI
+  // run identical commands. Build/configure itself goes through the CMake
+  // Tools extension (status bar) - these cover what CMake Tools doesn't.
+  "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}",
+    "env": { "IN_CONTAINER": "1" }
+  },
+  "tasks": [
+    {
+      "label": "make: build",
+      "type": "shell",
+      "command": "make build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "make: lint (clang-format + shellcheck)",
+      "type": "shell",
+      "command": "make lint",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "make: tidy (clang-tidy)",
+      "type": "shell",
+      "command": "make tidy",
+      "group": "test",
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "make: format",
+      "type": "shell",
+      "command": "make format",
+      "problemMatcher": []
+    },
+    {
+      "label": "make: server (serve dist/ on :8000)",
+      "type": "shell",
+      "command": "make server",
+      "isBackground": true,
+      // Lets launch.json wait until http.server prints its "Serving HTTP on"
+      // line before opening the browser.
+      "problemMatcher": {
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".",
+          "endsPattern": "Serving HTTP on"
+        }
+      },
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "stop: server",
+      "type": "shell",
+      "command": "pkill -f 'python3 -m http.server 8000' || true",
+      "problemMatcher": [],
+      "presentation": { "reveal": "never" }
+    },
+    {
+      "label": "make: distclean",
+      "type": "shell",
+      "command": "make distclean",
+      "problemMatcher": []
+    }
+  ]
+}

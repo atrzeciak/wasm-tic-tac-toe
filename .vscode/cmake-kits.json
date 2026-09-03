@@ -1,9 +1,13 @@
 [
   {
     "name": "Emscripten",
-    "toolchainFile": "${workspaceFolder}/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
-    "preferredGenerator": {
-      "name": "Ninja"
-    }
+    "toolchainFile": "/opt/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+    "preferredGenerator": { "name": "Ninja" },
+    "environmentVariables": { "EMSDK": "/opt/emsdk" }
+  },
+  {
+    "name": "native",
+    "compilers": { "C": "/usr/bin/gcc", "CXX": "/usr/bin/g++" },
+    "preferredGenerator": { "name": "Ninja" }
   }
 ]

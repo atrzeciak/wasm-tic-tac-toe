@@ -1,0 +1,50 @@
+{
+  // Two ways to debug, matching the two CMake kits:
+  //  * "native" kit  -> "Debug native (gdb)": a real Linux binary under gdb,
+  //    window on the forwarded X display. Fastest edit/debug loop.
+  //  * "Emscripten" kit, *Debug* variant -> "Debug wasm in Chrome/Edge":
+  //    serves dist/ and attaches the browser debugger; breakpoints in
+  //    wasm-tic-tac-toe.cpp work via the DWARF kept in index.wasm plus the
+  //    "WebAssembly DWARF Debugging" extension.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Native build (select the "native" kit in the CMake status bar first).
+      // ${command:cmake.launchTargetPath} builds the current target and returns
+      // its path. The window opens on the forwarded X display.
+      // Needs a container matching the host CPU (see docker-compose.yml):
+      // gdb cannot ptrace inside an amd64 container emulated by Rosetta.
+      "name": "Debug native (gdb)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${command:cmake.launchTargetPath}",
+      "cwd": "${workspaceFolder}",
+      "MIMode": "gdb",
+      "externalConsole": false,
+      "setupCommands": [
+        { "description": "Pretty-print STL", "text": "-enable-pretty-printing", "ignoreFailures": true }
+      ]
+    },
+    {
+      "name": "Debug wasm in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8000/index.html",
+      "webRoot": "${workspaceFolder}/dist",
+      // VS Code runs in the container; open the browser on the host.
+      "browserLaunchLocation": "ui",
+      "preLaunchTask": "make: server (serve dist/ on :8000)",
+      "postDebugTask": "stop: server"
+    },
+    {
+      "name": "Debug wasm in Edge",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:8000/index.html",
+      "webRoot": "${workspaceFolder}/dist",
+      "browserLaunchLocation": "ui",
+      "preLaunchTask": "make: server (serve dist/ on :8000)",
+      "postDebugTask": "stop: server"
+    }
+  ]
+}

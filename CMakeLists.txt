@@ -1,9 +1,21 @@
 cmake_minimum_required( VERSION 3.18 )
 
-project( wasm-tic-tac-toe )
+project( wasm-tic-tac-toe CXX )
+
+set( CMAKE_CXX_STANDARD 17 )
+set( CMAKE_CXX_STANDARD_REQUIRED ON )
+set( CMAKE_CXX_EXTENSIONS OFF )
 
 add_executable( wasm-tic-tac-toe
     wasm-tic-tac-toe.cpp
+)
+
+target_compile_options( wasm-tic-tac-toe PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wshadow
+    -Wconversion
 )
 
 find_package( SDL2 REQUIRED )
@@ -26,7 +38,13 @@ endif()
 if( EMSCRIPTEN )
     target_link_options( wasm-tic-tac-toe PUBLIC
         -sALLOW_MEMORY_GROWTH=1
-        -sSAFE_HEAP=2
+        # Debug only: keep DWARF in the .wasm so breakpoints in this .cpp work
+        # from VS Code (WebAssembly DWARF Debugging extension) or Chrome
+        # DevTools (C/C++ DevTools Support), and turn on SAFE_HEAP, which
+        # bounds-checks every memory access at a large size/speed cost.
+        $<$<CONFIG:Debug>:-g>
+        $<$<CONFIG:Debug>:-sSAFE_HEAP=2>
+        $<$<CONFIG:Debug>:-sASSERTIONS=2>
     )
     # special way to tell emscripten to build full website
     # /dist/
