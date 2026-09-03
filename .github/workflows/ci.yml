@@ -25,7 +25,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Install linters
         # SDL dev packages + ninja are only here so clang-tidy gets a native
@@ -46,11 +46,11 @@ jobs:
     name: Build (wasm)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - name: Restore emsdk
         id: cache-emsdk
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/emsdk
           key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('install-emscripten.sh') }}
@@ -75,7 +75,7 @@ jobs:
           ls -lh dist
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: dist
 
