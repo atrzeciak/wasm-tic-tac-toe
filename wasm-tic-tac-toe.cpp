@@ -186,11 +186,11 @@ class TicTacToe {
         d_winnerLine = winnerLine;
         d_gameFinished = true;
       } else {
-        WinnerLine winnerLine = getWinnerLine(CELL_O);
-        if (NONE != winnerLine) {
+        WinnerLine winnerLineO = getWinnerLine(CELL_O);
+        if (NONE != winnerLineO) {
           std::cout << "Winner O" << std::endl;
           d_gameWinner = CELL_O;
-          d_winnerLine = winnerLine;
+          d_winnerLine = winnerLineO;
           d_gameFinished = true;
         } else if (isBoardFull()) {
           std::cout << "No more moves" << std::endl;
@@ -326,7 +326,7 @@ class TicTacToe {
   }
 
   void makeRandomMoveFromList(const std::vector<int> &a, CellState p) {
-    const int r = rand() % a.size();
+    const size_t r = static_cast<size_t>(rand()) % a.size();
     makeMove(a[r], p);
   }
 
@@ -457,7 +457,7 @@ class TicTacToe {
         }
       }
     }
-    const int r = rand() % possibleMoves.size();
+    const size_t r = static_cast<size_t>(rand()) % possibleMoves.size();
     makeMove(possibleMoves[r], p);
   }
 
@@ -541,7 +541,6 @@ class TicTacToe {
     const int y_step = d_display_height / 6;
 
     if (d_gameFinished) {
-      SDL_Rect rect;
       switch (d_winnerLine) {
         case NONE:
           // Draw
@@ -652,7 +651,7 @@ class TicTacToe {
         ::SDL_CreateTextureFromSurface(d_renderer, text_surf);
 
     SDL_Rect dest;
-    dest.x = x - (text_surf->w / 2.0f);
+    dest.x = x - text_surf->w / 2;
     dest.y = y;
     dest.w = text_surf->w;
     dest.h = text_surf->h;
@@ -728,6 +727,12 @@ class TicTacToe {
   }
 
   int initialize() {
+#ifndef __EMSCRIPTEN__
+    // We render with SDL_RENDERER_SOFTWARE, but SDL still opens a GLX context
+    // to probe for accelerated framebuffer blits. Inside the devcontainer the
+    // forwarded X display has no usable GLX, which aborts the process; skip it.
+    ::SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "0");
+#endif
     ::SDL_Init(SDL_INIT_EVERYTHING);
 
     if (0 != ::TTF_Init()) {
@@ -843,7 +848,7 @@ void main_loop(void *user_data) {
 #endif
 }  // namespace
 
-int main(int argc, char **argv) {
+int main() {
   TicTacToe ticTacToe;
 
   ticTacToe.initialize();
