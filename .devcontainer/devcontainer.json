@@ -1,21 +1,116 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/cpp
 {
-	"name": "C++",
+	"name": "wasm-tic-tac-toe",
 	"dockerComposeFile": [
 		"docker-compose.yml"
 	],
 	"service": "wasm-tic-tac-toe",
 	"workspaceFolder": "/workarea",
+	// Runs on the host before compose: records the engine's arch in
+	// .devcontainer/.env so the image is built/run natively (see docker-compose.yml).
+	"initializeCommand": ["sh", ".devcontainer/host-platform.sh"],
+	"features": {
+		"ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+	},
+	// Put the baked-in emsdk on PATH so `emcc`, `emrun`, `embuilder` etc. work
+	// from the integrated terminal. Builds don't rely on this (the toolchain
+	// file is referenced by absolute path); it's a convenience.
+	// dist/ dev server (`make server` / the "Debug wasm in Chrome" launch config)
+	"forwardPorts": [8000],
+	"portsAttributes": {
+		"8000": { "label": "wasm-tic-tac-toe (dist/)", "onAutoForward": "silent" }
+	},
+	"remoteEnv": {
+		"EMSDK": "/opt/emsdk",
+		"PATH": "/opt/emsdk:/opt/emsdk/upstream/emscripten:${containerEnv:PATH}"
+	},
 	"customizations": {
 		"vscode": {
 			"settings": {
-				"git.enabled": true
+				"git.enabled": true,
+
+				// --- CMake Tools -------------------------------------------------
+				// One build tree per kit, named to match the Makefile:
+				//   Emscripten -> cmake-bld-Emscripten.local (same tree `make build` uses)
+				//   native     -> cmake-bld-native.local     (same tree `make tidy` uses;
+				//                 runnable/debuggable with gdb via the status-bar buttons)
+				"cmake.buildDirectory": "${workspaceFolder}/cmake-bld-${buildKit}.local",
+				"cmake.generator": "Ninja",
+				"cmake.configureOnOpen": true,
+				"cmake.useCMakePresets": "never",
+				"cmake.configureSettings": {
+					"CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+				},
+				// Default to Release like the Makefile; Debug turns SAFE_HEAP on.
+				"cmake.defaultVariants": {
+					"buildType": {
+						"default": "release",
+						"choices": {
+							"release": { "short": "Release", "long": "Optimized (what CI deploys)", "buildType": "Release" },
+							"debug": { "short": "Debug", "long": "Unoptimized + SAFE_HEAP", "buildType": "Debug" }
+						}
+					}
+				},
+				"cmake.options.statusBarVisibility": "visible",
+				// Status-bar Run/Debug work with the *native* kit (gdb, X11 window
+				// on the forwarded display). For the Emscripten kit use F5 ->
+				// "Debug wasm in Chrome" instead; gdb can't load a .wasm.
+				"cmake.debugConfig": {
+					"MIMode": "gdb",
+					"externalConsole": false,
+					"setupCommands": [
+						{ "description": "Pretty-print STL", "text": "-enable-pretty-printing", "ignoreFailures": true }
+					]
+				},
+
+				// --- C/C++ (IntelliSense, formatting, analysis) ----------------
+				// CMake Tools feeds cpptools the em++ command line, so IntelliSense
+				// sees __EMSCRIPTEN__, the wasm sysroot and the SDL2 port headers.
+				"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+				"C_Cpp.default.compileCommands": "${workspaceFolder}/cmake-bld-Emscripten.local/compile_commands.json",
+				"C_Cpp.default.cppStandard": "c++17",
+				"C_Cpp.default.intelliSenseMode": "linux-clang-x86",
+				"C_Cpp.clang_format_style": "file",
+				"C_Cpp.formatting": "clangFormat",
+				"C_Cpp.codeAnalysis.clangTidy.enabled": true,
+				"[cpp]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": true
+				},
+				"[c]": {
+					"editor.defaultFormatter": "ms-vscode.cpptools",
+					"editor.formatOnSave": true
+				},
+
+				// --- shell -----------------------------------------------------
+				"shellcheck.executablePath": "/usr/bin/shellcheck",
+				"shellcheck.run": "onSave",
+
+				// The generated bitmap/font headers are megabytes of hex literals;
+				// keep them out of search, watchers and IntelliSense indexing.
+				"files.watcherExclude": {
+					"**/cmake-bld*.local/**": true,
+					"**/dist/**": true
+				},
+				"search.exclude": {
+					"**/cmake-bld*.local": true,
+					"**/dist": true,
+					"**/resources/*_bmp.h": true,
+					"**/resources/*_ttf.h": true
+				},
+				"C_Cpp.files.exclude": {
+					"**/cmake-bld*.local": true,
+					"**/dist": true
+				}
 			},
 			"extensions": [
 				"ms-vscode.cpptools",
 				"ms-vscode.cmake-tools",
-				"twxs.cmake"
+				"twxs.cmake",
+				"timonwong.shellcheck",
+				"ms-vscode.wasm-dwarf-debugging",
+				"anthropic.claude-code"
 			]
 		}
 	}
