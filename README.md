@@ -23,7 +23,12 @@ wraps the command in `docker compose run`; run it from a devcontainer shell
 make build     # wasm: writes dist/index.html, index.js, index.wasm
 make native    # Linux binary: cmake-bld-native.local/wasm-tic-tac-toe
 make server    # serve dist/ on http://localhost:8000
+make run       # run the native binary in the container, window on the host
 ```
+
+`make run` needs an X server on the host. On macOS install XQuartz, run
+`make xquartz-tcp` once and restart XQuartz; the container then connects
+to it over TCP as `host.docker.internal:0` (override with `X11_DISPLAY=`).
 
 Other targets:
 

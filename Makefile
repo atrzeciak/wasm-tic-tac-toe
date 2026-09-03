@@ -14,6 +14,11 @@ HTTP_PORT?=8000
 EMSDK_DIR?=/opt/emsdk
 EMSCRIPTEN_CMAKE?="$(EMSDK_DIR)/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
 
+# The native binary is a Linux build, so `make run` runs it in the container
+# and opens its window on the host's X server over TCP. On macOS XQuartz must
+# accept network clients: `make xquartz-tcp` once, then restart XQuartz.
+X11_DISPLAY?=host.docker.internal:0
+
 # Detect whether make is already running inside the devcontainer. Any of:
 #   - VS Code / devcontainer CLI export REMOTE_CONTAINERS or DEVCONTAINER
 #   - Docker creates /.dockerenv in every container
@@ -38,6 +43,8 @@ ifeq ($(IN_CONTAINER),1)
 WORKAREA:=$(CURDIR)
 RUN:=
 SERVE:=
+# VS Code forwards the host display into the devcontainer as $DISPLAY.
+RUN_X11:=
 else
 # Pin the compose platform to the engine's arch (writes .devcontainer/.env).
 $(if $(shell sh .devcontainer/host-platform.sh),,$(error host-platform.sh failed))
@@ -45,6 +52,7 @@ COMPOSE:=docker compose -f .devcontainer/docker-compose.yml
 SERVICE:=wasm-tic-tac-toe
 RUN:=$(COMPOSE) run --rm $(SERVICE)
 SERVE:=$(COMPOSE) run --rm -p $(HTTP_PORT):$(HTTP_PORT) $(SERVICE)
+RUN_X11:=xhost +localhost >/dev/null && $(COMPOSE) run --rm -e DISPLAY=$(X11_DISPLAY) $(SERVICE)
 endif
 
 .PHONY: all
@@ -107,6 +115,17 @@ tidy: $(NATIVE_BUILD_DIR)
 .PHONY: native
 native: $(NATIVE_BUILD_DIR)
 	$(RUN) cmake --build $(WORKAREA)/$(NATIVE_BUILD_DIR) --config $(BUILD_TYPE) --target all --verbose
+
+.PHONY: run
+run: native
+	$(RUN_X11) $(WORKAREA)/$(NATIVE_BUILD_DIR)/wasm-tic-tac-toe
+
+# One-time macOS setup: let XQuartz accept TCP clients (same as ticking
+# "Allow connections from network clients" in XQuartz > Settings > Security).
+.PHONY: xquartz-tcp
+xquartz-tcp:
+	defaults write org.xquartz.X11 nolisten_tcp -bool false
+	@echo "Restart XQuartz for this to take effect."
 
 .PHONY: server
 server:
