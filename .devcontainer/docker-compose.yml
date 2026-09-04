@@ -2,10 +2,12 @@ services:
   wasm-tic-tac-toe:
     # Always the Docker engine's own architecture: HOST_PLATFORM comes from
     # .devcontainer/.env, written by host-platform.sh (run by the Makefile and
-    # by devcontainer.json's initializeCommand). An explicit platform here
-    # outranks DOCKER_DEFAULT_PLATFORM, so an exported linux/amd64 can't put an
-    # Apple Silicon Mac under Rosetta, where gdb can't ptrace and everything
-    # runs slower. The base image, emsdk and all apt packages ship arm64 too.
+    # by devcontainer.json's initializeCommand), so an Apple Silicon Mac never
+    # ends up under Rosetta, where gdb can't ptrace and everything runs slower.
+    # An exported DOCKER_DEFAULT_PLATFORM is not overridden by this line:
+    # compose lets it win over `platform:` for builds and refuses when the two
+    # differ, so the Makefile unexports it before calling docker.
+    # The base image, emsdk and all apt packages ship arm64 too.
     platform: ${HOST_PLATFORM:?run .devcontainer/host-platform.sh first}
     image: local/wasm-tic-tac-toe
     build:

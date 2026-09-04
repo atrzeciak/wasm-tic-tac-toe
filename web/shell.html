@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- Emscripten shell for dist/index.html; {{{ SCRIPT }}} becomes index.js. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tic-Tac-Toe</title>
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: #111;
+      color: #ddd;
+      font-family: system-ui, sans-serif;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1rem;
+      box-sizing: border-box;
+      min-height: 100vh;
+    }
+    /* SDL sizes the canvas buffer to the window (720x720) and sets an inline
+       CSS size to match; !important lets the page scale it to fit instead.
+       SDL maps mouse coordinates through the CSS size, so clicks stay right. */
+    canvas {
+      display: block;
+      width: min(90vmin, 720px) !important;
+      height: min(90vmin, 720px) !important;
+      background: #000;
+    }
+    canvas:focus { outline: none; }
+    p { margin: 0; font-size: 0.9rem; opacity: 0.7; text-align: center; }
+    a { color: inherit; }
+  </style>
+</head>
+<body>
+  <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+  <p>Space starts a game, click a cell to play. Game messages go to the browser console.<br>
+     Source on <a href="https://github.com/atrzeciak/wasm-tic-tac-toe">GitHub</a>.</p>
+  <script>
+    var Module = { canvas: document.getElementById('canvas') };
+  </script>
+  {{{ SCRIPT }}}
+</body>
+</html>

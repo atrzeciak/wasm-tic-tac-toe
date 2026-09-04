@@ -3,7 +3,8 @@
 dist/
 
 # CMake build trees: one per kit (cmake-bld-Emscripten.local, cmake-bld-native.local),
-# CMake Tools / IDE defaults (build, out, cmake-build-*)
+# CMake Tools / IDE defaults (build, out, cmake-build-*). The embedded-resource
+# headers (generated/resources/*.h) live inside them and are never committed.
 cmake-bld*/
 cmake-build*/
 build/
@@ -19,7 +20,7 @@ compile_commands.json
 emsdk/
 .emscripten_cache/
 
-# ---- python (resources/convert.sh + linters) -----------------------------------
+# ---- python (scripts/convert.py + linters) -------------------------------------
 .venv/
 venv/
 __pycache__/
@@ -27,9 +28,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
-
-# intermediate BMPs written by resources/convert.py (deleted on success)
-resources/*.bmp
 
 # ---- editors / IDEs ------------------------------------------------------------
 # Only the shared, tracked VS Code config is kept

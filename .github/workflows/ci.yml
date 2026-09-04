@@ -28,19 +28,22 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Install linters
-        # SDL dev packages + ninja are only here so clang-tidy gets a native
-        # compile database (see the `tidy` target in the Makefile).
+        # SDL dev packages + ninja: the native build, its unit tests and the
+        # compile database clang-tidy reads (see the Makefile's `tidy`).
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             clang-format clang-tidy shellcheck ninja-build \
-            libsdl2-dev libsdl2-ttf-dev
+            libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 
       - name: clang-format + shellcheck
         run: make lint IN_CONTAINER=1
 
       - name: clang-tidy
         run: make tidy IN_CONTAINER=1
+
+      - name: Native build + unit tests
+        run: make test IN_CONTAINER=1
 
   build:
     name: Build (wasm)
@@ -53,11 +56,11 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/emsdk
-          key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('install-emscripten.sh') }}
+          key: emsdk-${{ runner.os }}-${{ env.EMSDK_VERSION }}-${{ hashFiles('scripts/install-emscripten.sh') }}
 
       - name: Install Emscripten
         if: steps.cache-emsdk.outputs.cache-hit != 'true'
-        run: EMSDK_DIR="$HOME/emsdk" bash install-emscripten.sh
+        run: EMSDK_DIR="$HOME/emsdk" bash scripts/install-emscripten.sh
 
       - name: Install Ninja
         run: |

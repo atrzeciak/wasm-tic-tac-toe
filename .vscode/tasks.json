@@ -23,6 +23,13 @@
       "problemMatcher": []
     },
     {
+      "label": "make: test (native unit tests)",
+      "type": "shell",
+      "command": "make test",
+      "group": "test",
+      "problemMatcher": ["$gcc"]
+    },
+    {
       "label": "make: tidy (clang-tidy)",
       "type": "shell",
       "command": "make tidy",

@@ -4,7 +4,7 @@
   //    window on the forwarded X display. Fastest edit/debug loop.
   //  * "Emscripten" kit, *Debug* variant -> "Debug wasm in Chrome/Edge":
   //    serves dist/ and attaches the browser debugger; breakpoints in
-  //    wasm-tic-tac-toe.cpp work via the DWARF kept in index.wasm plus the
+  //    src/main.cpp work via the DWARF kept in index.wasm plus the
   //    "WebAssembly DWARF Debugging" extension.
   "version": "0.2.0",
   "configurations": [

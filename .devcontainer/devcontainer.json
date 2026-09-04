@@ -13,14 +13,14 @@
 	"features": {
 		"ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
 	},
-	// Put the baked-in emsdk on PATH so `emcc`, `emrun`, `embuilder` etc. work
-	// from the integrated terminal. Builds don't rely on this (the toolchain
-	// file is referenced by absolute path); it's a convenience.
 	// dist/ dev server (`make server` / the "Debug wasm in Chrome" launch config)
 	"forwardPorts": [8000],
 	"portsAttributes": {
 		"8000": { "label": "wasm-tic-tac-toe (dist/)", "onAutoForward": "silent" }
 	},
+	// Put the baked-in emsdk on PATH so `emcc`, `emrun`, `embuilder` etc. work
+	// from the integrated terminal. Builds don't rely on this (the toolchain
+	// file is referenced by absolute path); it's a convenience.
 	"remoteEnv": {
 		"EMSDK": "/opt/emsdk",
 		"PATH": "/opt/emsdk:/opt/emsdk/upstream/emscripten:${containerEnv:PATH}"
@@ -70,7 +70,6 @@
 				"C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
 				"C_Cpp.default.compileCommands": "${workspaceFolder}/cmake-bld-Emscripten.local/compile_commands.json",
 				"C_Cpp.default.cppStandard": "c++17",
-				"C_Cpp.default.intelliSenseMode": "linux-clang-x86",
 				"C_Cpp.clang_format_style": "file",
 				"C_Cpp.formatting": "clangFormat",
 				"C_Cpp.codeAnalysis.clangTidy.enabled": true,
@@ -87,17 +86,15 @@
 				"shellcheck.executablePath": "/usr/bin/shellcheck",
 				"shellcheck.run": "onSave",
 
-				// The generated bitmap/font headers are megabytes of hex literals;
-				// keep them out of search, watchers and IntelliSense indexing.
+				// Build trees hold the generated resource headers (megabytes of hex
+				// literals); keep them out of search and watchers.
 				"files.watcherExclude": {
 					"**/cmake-bld*.local/**": true,
 					"**/dist/**": true
 				},
 				"search.exclude": {
 					"**/cmake-bld*.local": true,
-					"**/dist": true,
-					"**/resources/*_bmp.h": true,
-					"**/resources/*_ttf.h": true
+					"**/dist": true
 				},
 				"C_Cpp.files.exclude": {
 					"**/cmake-bld*.local": true,

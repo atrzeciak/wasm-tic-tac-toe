@@ -18,9 +18,14 @@ BUILD_TYPE?=Release
 # Build trees are named cmake-bld-<kit>.local so they line up with the VS Code
 # CMake Tools kits in .vscode/cmake-kits.json (see cmake.buildDirectory).
 CMAKE_BUILD_DIR:=cmake-bld-Emscripten.local
-# Native (non-wasm) tree: `make native` builds a Linux binary here, clang-tidy
-# reads its compile database, and the IDE's "native" kit debugs it with gdb.
+# Native (non-wasm) tree: `make native` builds a Linux binary here, `make test`
+# runs the unit tests from it, clang-tidy reads its compile database, and the
+# IDE's "native" kit debugs it with gdb.
 NATIVE_BUILD_DIR:=cmake-bld-native.local
+
+# What the formatter and the linters look at.
+SOURCES:=$(wildcard src/*.cpp src/*.h tests/*.cpp)
+SHELL_SCRIPTS:=scripts/convert.sh scripts/install-emscripten.sh .devcontainer/host-platform.sh
 
 WORKAREA:=/workarea
 HTTP_PORT?=8000
@@ -72,6 +77,10 @@ SERVE:=
 # VS Code forwards the host display into the devcontainer as $DISPLAY.
 RUN_X11:=
 else
+# Compose lets an exported DOCKER_DEFAULT_PLATFORM override the service's
+# `platform:` for builds and refuses when the two differ, so keep it away from
+# every docker command make runs: the image is always the engine's own arch.
+unexport DOCKER_DEFAULT_PLATFORM
 # Pin the compose platform to the engine's arch (writes .devcontainer/.env).
 $(if $(shell sh .devcontainer/host-platform.sh),,$(error host-platform.sh failed))
 COMPOSE:=docker compose -f .devcontainer/docker-compose.yml
@@ -80,6 +89,15 @@ RUN:=$(COMPOSE) run --rm $(SERVICE)
 SERVE:=$(COMPOSE) run --rm -p $(HTTP_PORT):$(HTTP_PORT) $(SERVICE)
 RUN_X11:=$(X11_ALLOW) >/dev/null && $(COMPOSE) run --rm $(X11_OPTS) $(SERVICE)
 endif
+
+# Configure options shared by both trees. Configure runs before every build:
+# it is a no-op when nothing changed, and it is the only way a different
+# BUILD_TYPE takes effect (Ninja is single-config, so `cmake --build --config`
+# cannot switch it).
+CMAKE_CONFIGURE:=cmake \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
+  -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) \
+  -S$(WORKAREA) -G Ninja
 
 .PHONY: all
 all:
@@ -92,21 +110,23 @@ else
 	$(COMPOSE) build
 endif
 
-$(CMAKE_BUILD_DIR):
-	$(RUN) cmake \
-	  -DCMAKE_TOOLCHAIN_FILE=$(EMSCRIPTEN_CMAKE) \
-	  -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
-	  -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) \
-	  -S$(WORKAREA) -B$(WORKAREA)/$(CMAKE_BUILD_DIR) -G Ninja
+# ---- wasm ------------------------------------------------------------------
 
+.PHONY: configure-wasm
+configure-wasm:
+	$(RUN) $(CMAKE_CONFIGURE) \
+	  -DCMAKE_TOOLCHAIN_FILE=$(EMSCRIPTEN_CMAKE) \
+	  -B$(WORKAREA)/$(CMAKE_BUILD_DIR)
+
+# Configure the wasm tree from scratch.
 .PHONY: configure
 configure:
 	$(RUN) rm -rf $(WORKAREA)/$(CMAKE_BUILD_DIR)
-	$(MAKE) $(CMAKE_BUILD_DIR)
+	$(MAKE) configure-wasm
 
 .PHONY: build
-build: $(CMAKE_BUILD_DIR)
-	$(RUN) cmake --build $(WORKAREA)/$(CMAKE_BUILD_DIR) --config $(BUILD_TYPE) --target all --verbose
+build: configure-wasm
+	$(RUN) cmake --build $(WORKAREA)/$(CMAKE_BUILD_DIR) --verbose
 
 .PHONY: clean
 clean:
@@ -116,31 +136,20 @@ clean:
 distclean:
 	$(RUN) rm -rf $(WORKAREA)/$(CMAKE_BUILD_DIR) $(WORKAREA)/$(NATIVE_BUILD_DIR) $(WORKAREA)/dist
 
-.PHONY: format
-format:
-	$(RUN) clang-format -i wasm-tic-tac-toe.cpp
+# ---- native ----------------------------------------------------------------
 
-# Same checks CI runs in its lint job.
-.PHONY: lint
-lint:
-	$(RUN) clang-format --dry-run -Werror wasm-tic-tac-toe.cpp
-	$(RUN) shellcheck install-emscripten.sh resources/convert.sh .devcontainer/host-platform.sh
-
-# clang-tidy runs against a native configure: the host clang-tidy can't parse
-# emcc-only flags (-sUSE_SDL=2) in the wasm compile database.
-$(NATIVE_BUILD_DIR):
-	$(RUN) cmake \
-	  -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE \
-	  -DCMAKE_BUILD_TYPE:STRING=$(BUILD_TYPE) \
-	  -S$(WORKAREA) -B$(WORKAREA)/$(NATIVE_BUILD_DIR) -G Ninja
-
-.PHONY: tidy
-tidy: $(NATIVE_BUILD_DIR)
-	$(RUN) clang-tidy -p $(WORKAREA)/$(NATIVE_BUILD_DIR) wasm-tic-tac-toe.cpp
+.PHONY: configure-native
+configure-native:
+	$(RUN) $(CMAKE_CONFIGURE) -B$(WORKAREA)/$(NATIVE_BUILD_DIR)
 
 .PHONY: native
-native: $(NATIVE_BUILD_DIR)
-	$(RUN) cmake --build $(WORKAREA)/$(NATIVE_BUILD_DIR) --config $(BUILD_TYPE) --target all --verbose
+native: configure-native
+	$(RUN) cmake --build $(WORKAREA)/$(NATIVE_BUILD_DIR) --verbose
+
+# Unit tests of the game logic (tests/), built and run from the native tree.
+.PHONY: test
+test: native
+	$(RUN) ctest --test-dir $(WORKAREA)/$(NATIVE_BUILD_DIR) --output-on-failure --timeout 60
 
 .PHONY: run
 run: native
@@ -160,3 +169,38 @@ endif
 .PHONY: server
 server:
 	$(SERVE) python3 -m http.server $(HTTP_PORT) -d $(WORKAREA)/dist
+
+# ---- embedded resources ----------------------------------------------------
+
+# Regenerate the resource headers (<tree>/generated/resources/*.h, made from
+# resources/ by scripts/convert.py) in every configured build tree. The build
+# does this on its own when a resource changes; this forces it.
+.PHONY: includes
+includes: configure-wasm
+	$(RUN) sh -c 'for tree in $(CMAKE_BUILD_DIR) $(NATIVE_BUILD_DIR); do \
+	  if [ -f $(WORKAREA)/$$tree/build.ninja ]; then \
+	    rm -rf $(WORKAREA)/$$tree/generated; \
+	    cmake --build $(WORKAREA)/$$tree --target includes; \
+	  fi; \
+	done'
+
+# ---- code quality ----------------------------------------------------------
+
+.PHONY: format
+format:
+	$(RUN) clang-format -i $(SOURCES)
+
+# Same checks CI runs in its lint job.
+.PHONY: lint
+lint:
+	$(RUN) clang-format --dry-run -Werror $(SOURCES)
+	$(RUN) shellcheck $(SHELL_SCRIPTS)
+	$(RUN) python3 -m py_compile scripts/convert.py
+
+# clang-tidy runs against the native configure: the host clang-tidy can't parse
+# emcc-only flags (-sUSE_SDL=2) in the wasm compile database. The generated
+# resource headers must exist for the front end to parse.
+.PHONY: tidy
+tidy: configure-native
+	$(RUN) cmake --build $(WORKAREA)/$(NATIVE_BUILD_DIR) --target includes
+	$(RUN) clang-tidy -p $(WORKAREA)/$(NATIVE_BUILD_DIR) $(filter %.cpp,$(SOURCES))

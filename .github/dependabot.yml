@@ -7,3 +7,15 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+
+  # Base image tag in .devcontainer/Dockerfile
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: monthly
+
+  # Features pinned in .devcontainer/devcontainer-lock.json
+  - package-ecosystem: devcontainers
+    directory: /
+    schedule:
+      interval: monthly
