@@ -1,62 +1,102 @@
 ---
-# Every finding fails `make tidy` (and CI); silence a deliberate one with
-# NOLINT and a reason.
+# clang-tidy configuration. `make tidy` (CI's lint job) runs the container's
+# clang-tidy against the native compile database; the IDE's C/C++ extension
+# runs its own, newer clang-tidy on the open file with this same file. Both
+# have to come out clean, so only whole check groups and long-standing check
+# names appear here, never a name that exists in one version only.
+#
+# Every finding fails `make tidy`; silence a deliberate one with NOLINT plus
+# the reason. tests/.clang-tidy relaxes a few checks for the unit tests.
 WarningsAsErrors: '*'
 # Diagnose the project's own headers, never SDL, the system or the generated
 # resource arrays under <build tree>/generated.
 HeaderFilterRegex: '(src|tests)/[^/]*\.h$'
-SystemHeaders: false
+# Fixes (`clang-tidy --fix`) come out in .clang-format style.
 FormatStyle: file
+# Extra compiler arguments for clang-tidy only; the real build never sees
+# them. Both exist for the IDE, which hands its clang-tidy the IntelliSense
+# command line instead of the compile database:
+#   - SDL_cpuinfo.h includes <arm_neon.h> on arm64. The IDE passes GCC's
+#     include directories, and GCC's arm_neon.h is written in GCC builtins
+#     clang does not have, so every SDL translation unit failed with "unknown
+#     type name '__Int64x1_t'". Nothing here uses NEON; SDL's own switch keeps
+#     the header out.
+#   - The IDE passes SDL's directory as -I, not -isystem as the build does, so
+#     findings inside SDL's macros (SDL_WINDOWPOS_UNDEFINED ORs a signed 0)
+#     land on our lines. Naming the directory as -isystem again makes clang
+#     treat it as a system header. These are the paths the devcontainer image
+#     and CI install SDL to (apt, and the Emscripten port); a path that does
+#     not exist is ignored.
+ExtraArgs:
+  - '-DSDL_DISABLE_ARM_NEON_H'
+  - '-isystem/usr/include/SDL2'
+  - '-isystem/opt/emsdk/upstream/emscripten/cache/sysroot/include/SDL2'
 
-CheckOptions:
-  - key:   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
-    value: 'true'
-  - key:   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions
-    value: 'true'
-  - key:   cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
-    value: 'true'
-  - key:   misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
-    value: 'true'
-  - key:   modernize-make-shared.MakeSmartPtrFunction
-    value: 'std::make_shared'
-  - key:   modernize-make-shared.MakeSmartPtrFunctionHeader
-    value: memory
-  - key:   modernize-make-unique.MakeSmartPtrFunction
-    value: 'std::make_unique'
-  - key:   modernize-make-unique.MakeSmartPtrFunctionHeader
-    value: memory
-  - key:   modernize-use-nullptr.NullMacros
-    value: 'NULL'
-
+# Whole groups, then the opt-outs (later entries win). hicpp-* is listed by
+# name because the rest of that group are aliases of checks enabled above,
+# and every alias would need its options set a second time.
+#   modernize-use-trailing-return-type  Google style keeps `int f()`.
+#   readability-identifier-length       x, y, w, h, a, b are the clearest
+#                                       names in geometry and in tests.
 Checks: >
+  bugprone-*,
+  cert-*,
   clang-analyzer-*,
   clang-diagnostic-*,
-  bugprone-*,
-  -bugprone-reserved-identifier,
-  -bugprone-easily-swappable-parameters,
+  concurrency-*,
   cppcoreguidelines-*,
-  -cppcoreguidelines-avoid-c-arrays,
-  -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-avoid-non-const-global-variables,
-  -cppcoreguidelines-bugprone-reserved-identifier,
-  -cppcoreguidelines-macro-usage,
-  -cppcoreguidelines-owning-memory,
-  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
-  -cppcoreguidelines-pro-bounds-constant-array-index,
-  -cppcoreguidelines-pro-type-union-access,
-  -cppcoreguidelines-use-default-member-init,
   google-*,
-  -google-build-using-namespace,
-  -google-explicit-constructor,
+  hicpp-exception-baseclass,
+  hicpp-multiway-paths-covered,
+  hicpp-no-assembler,
+  hicpp-signed-bitwise,
   misc-*,
-  -misc-include-cleaner,
   modernize-*,
-  -modernize-avoid-c-arrays,
-  -modernize-use-trailing-return-type,
-  -modernize-use-default-member-init,
   performance-*,
+  portability-*,
   readability-*,
-  -readability-identifier-length,
-  -readability-identifier-naming,
-  -readability-magic-numbers
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length
+
+CheckOptions:
+  # Two adjacent parameters of one type are what geometry looks like
+  # (text(x, y), cellIndex(col, row)); flag it from three on.
+  bugprone-easily-swappable-parameters.MinimumLength: 3
+  # A class may declare only a destructor (App) and leave out the moves.
+  cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctions: true
+  cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted: true
+  # Bit arithmetic on plain literals (1 << 3, ~0) is fine; a signed variable
+  # or function result in a bitwise expression still is not.
+  hicpp-signed-bitwise.IgnorePositiveIntegerLiterals: true
+  # <SDL.h> and <emscripten.h> are umbrella headers: never ask for SDL_video.h
+  # and friends. Matched against the header's full path, so this covers the
+  # system SDL and the Emscripten sysroot alike.
+  misc-include-cleaner.IgnoreHeaders: 'SDL2/.*;include/emscripten/.*'
+  # Plain aggregates (Move, Result) keep their public data members.
+  misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic: true
+  # Naming: CamelCase types, camelBack functions and variables, kConstants,
+  # d_ private data members, UPPER_CASE macros, lower_case namespaces.
+  readability-identifier-naming.NamespaceCase: lower_case
+  readability-identifier-naming.ClassCase: CamelCase
+  readability-identifier-naming.StructCase: CamelCase
+  readability-identifier-naming.UnionCase: CamelCase
+  readability-identifier-naming.EnumCase: CamelCase
+  readability-identifier-naming.EnumConstantCase: CamelCase
+  readability-identifier-naming.TypeAliasCase: CamelCase
+  readability-identifier-naming.TypedefCase: CamelCase
+  readability-identifier-naming.TemplateParameterCase: CamelCase
+  readability-identifier-naming.FunctionCase: camelBack
+  readability-identifier-naming.VariableCase: camelBack
+  readability-identifier-naming.ParameterCase: camelBack
+  readability-identifier-naming.MemberCase: camelBack
+  readability-identifier-naming.PrivateMemberCase: camelBack
+  readability-identifier-naming.PrivateMemberPrefix: d_
+  readability-identifier-naming.ProtectedMemberCase: camelBack
+  readability-identifier-naming.ProtectedMemberPrefix: d_
+  readability-identifier-naming.ConstexprVariableCase: CamelCase
+  readability-identifier-naming.ConstexprVariablePrefix: k
+  readability-identifier-naming.GlobalConstantCase: CamelCase
+  readability-identifier-naming.GlobalConstantPrefix: k
+  readability-identifier-naming.MacroDefinitionCase: UPPER_CASE
 ...

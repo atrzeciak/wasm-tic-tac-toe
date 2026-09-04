@@ -73,6 +73,16 @@ Pass `BUILD_TYPE=Debug` to keep DWARF in the `.wasm` and enable
 Emscripten's `SAFE_HEAP` and `ASSERTIONS`. Every build re-runs the
 configure step, so switching `BUILD_TYPE` takes effect immediately.
 
+## Code style
+
+`.clang-format` is Google style with the per-file guesses pinned (pointers
+bind to the name, includes regrouped: own header, C, C++, project, generated
+resources). `.clang-tidy` turns on every check group and treats findings as
+errors; `tests/.clang-tidy` lets the tests keep literal boards and the
+`CHECK` macro. The C/C++ extension in VS Code runs its own, newer clang-tidy
+on the open file with the same configuration, so the code has to be clean
+under both it and the container's clang-tidy that `make tidy` runs.
+
 ## VS Code
 
 Open the folder and choose "Reopen in Container". Two CMake Tools kits are

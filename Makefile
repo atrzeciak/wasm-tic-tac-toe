@@ -213,8 +213,9 @@ lint:
 
 # clang-tidy runs against the native configure: the host clang-tidy can't parse
 # emcc-only flags (-sUSE_SDL=2) in the wasm compile database. The generated
-# resource headers must exist for the front end to parse.
+# resource headers must exist for the front end to parse. --quiet drops the
+# "Suppressed N warnings" tally at the end; every finding is still printed.
 .PHONY: tidy
 tidy: configure-native
 	$(RUN) cmake --build $(WORKAREA)/$(NATIVE_BUILD_DIR) --target includes
-	$(RUN) clang-tidy -p $(WORKAREA)/$(NATIVE_BUILD_DIR) $(filter %.cpp,$(SOURCES))
+	$(RUN) clang-tidy --quiet -p $(WORKAREA)/$(NATIVE_BUILD_DIR) $(filter %.cpp,$(SOURCES))

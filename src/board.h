@@ -20,7 +20,7 @@ constexpr Mark other(Mark m) { return m == Mark::X ? Mark::O : Mark::X; }
 //   0 1 2
 //   3 4 5
 //   6 7 8
-constexpr int cellIndex(int col, int row) { return col + kSize * row; }
+constexpr int cellIndex(int col, int row) { return col + (kSize * row); }
 constexpr int cellCol(int idx) { return idx % kSize; }
 constexpr int cellRow(int idx) { return idx / kSize; }
 
@@ -66,6 +66,9 @@ class Board {
 
  private:
   static constexpr std::array<Mark, kCells> emptyCells() {
+    // Value-initialising gives the cells 0, which is no Mark; the loop fills
+    // them with Mark::Empty before anything reads them.
+    // NOLINTNEXTLINE(bugprone-invalid-enum-default-initialization)
     std::array<Mark, kCells> cells{};
     for (Mark &m : cells) {
       m = Mark::Empty;

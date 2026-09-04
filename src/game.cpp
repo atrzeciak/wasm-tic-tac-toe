@@ -1,5 +1,8 @@
 #include "game.h"
 
+#include "ai.h"
+#include "board.h"
+
 namespace ttt {
 
 Game::Game() = default;

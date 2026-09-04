@@ -11,12 +11,14 @@
 
 #include <cstdint>
 #include <iostream>
+#include <iterator>
 #include <map>
 #include <string>
 #include <utility>
 
 #include "board.h"
 #include "game.h"
+
 #include "resources/RedO_png.h"
 #include "resources/RedX_png.h"
 #include "resources/RobotoMono_Regular_ttf.h"
@@ -29,8 +31,21 @@ using ttt::Mark;
 constexpr int kInitialSize = 720;
 constexpr int kFontPt = 36;
 constexpr int kCellInset = 10;
-constexpr int kLineHalfWidth = 1;  // winner line is 2 * this + 1 pixels wide
-#ifndef __EMSCRIPTEN__
+constexpr int kLineHalfWidth = 1;     // winner line is 2 * this + 1 pixels wide
+constexpr unsigned kChannelBits = 8;  // one SDL_Color channel, see pack()
+// The start screen is laid out on a grid of kSplashRows rows; each line of
+// text has its top edge at one of these rows.
+constexpr int kSplashRows = 8;
+constexpr int kTitleRow = 1;
+constexpr int kPlayerRow = 3;
+constexpr int kLevelRow = 4;
+constexpr int kPromptRow = 7;
+#ifdef __EMSCRIPTEN__
+// In the browser SDL would size a resizable canvas to the whole page; the
+// shell's CSS scales the fixed canvas instead.
+constexpr Uint32 kWindowFlags = 0;
+#else
+constexpr Uint32 kWindowFlags = SDL_WINDOW_RESIZABLE;
 constexpr Uint32 kFrameDelayMs = 16;  // the browser paces the wasm loop itself
 #endif
 
@@ -52,10 +67,21 @@ const char *verdictText(Mark winner) {
   return "Draw";
 }
 
+// The colour as one integer, RGBA, for the text cache key.
 std::uint32_t pack(SDL_Color c) {
-  return (static_cast<std::uint32_t>(c.r) << 24U) |
-         (static_cast<std::uint32_t>(c.g) << 16U) |
-         (static_cast<std::uint32_t>(c.b) << 8U) | c.a;
+  std::uint32_t packed = 0;
+  for (const Uint8 channel : {c.r, c.g, c.b, c.a}) {
+    packed = (packed << kChannelBits) | channel;
+  }
+  return packed;
+}
+
+// A read-only SDL stream over one of the embedded resource arrays. Whoever
+// reads it frees it (SDL's freesrc = 1).
+template <typename Bytes>
+SDL_RWops *resourceStream(const Bytes &bytes) {
+  return ::SDL_RWFromConstMem(std::data(bytes),
+                              static_cast<int>(std::size(bytes)));
 }
 
 class App {
@@ -78,7 +104,7 @@ class App {
 
  private:
   bool loadResources();
-  SDL_Texture *loadPng(const unsigned char *bytes, int size);
+  SDL_Texture *loadPng(SDL_RWops *stream);
 
   bool handleEvents();
   void keyPressed(SDL_Keycode sym);
@@ -124,20 +150,14 @@ bool App::initialize() {
     std::cerr << "TTF_Init: " << ::TTF_GetError() << '\n';
     return false;
   }
-  if ((::IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) == 0) {
+  if (::IMG_Init(IMG_INIT_PNG) != IMG_INIT_PNG) {
     std::cerr << "IMG_Init: " << ::IMG_GetError() << '\n';
     return false;
   }
 
-  Uint32 flags = 0;
-#ifndef __EMSCRIPTEN__
-  // In the browser SDL would size a resizable canvas to the whole page; the
-  // shell's CSS scales the fixed canvas instead.
-  flags |= SDL_WINDOW_RESIZABLE;
-#endif
-  d_window =
-      ::SDL_CreateWindow("wasm-tic-tac-toe", SDL_WINDOWPOS_UNDEFINED,
-                         SDL_WINDOWPOS_UNDEFINED, d_width, d_height, flags);
+  d_window = ::SDL_CreateWindow("wasm-tic-tac-toe", SDL_WINDOWPOS_UNDEFINED,
+                                SDL_WINDOWPOS_UNDEFINED, d_width, d_height,
+                                kWindowFlags);
   if (d_window == nullptr) {
     std::cerr << "SDL_CreateWindow: " << ::SDL_GetError() << '\n';
     return false;
@@ -151,21 +171,18 @@ bool App::initialize() {
 }
 
 bool App::loadResources() {
-  d_font = ::TTF_OpenFontRW(
-      ::SDL_RWFromConstMem(RobotoMono_Regular_ttf,
-                           static_cast<int>(sizeof(RobotoMono_Regular_ttf))),
-      1, kFontPt);
+  d_font = ::TTF_OpenFontRW(resourceStream(RobotoMono_Regular_ttf), 1, kFontPt);
   if (d_font == nullptr) {
     std::cerr << "TTF_OpenFontRW: " << ::TTF_GetError() << '\n';
     return false;
   }
-  d_xTexture = loadPng(RedX_png, static_cast<int>(sizeof(RedX_png)));
-  d_oTexture = loadPng(RedO_png, static_cast<int>(sizeof(RedO_png)));
+  d_xTexture = loadPng(resourceStream(RedX_png));
+  d_oTexture = loadPng(resourceStream(RedO_png));
   return d_xTexture != nullptr && d_oTexture != nullptr;
 }
 
-SDL_Texture *App::loadPng(const unsigned char *bytes, int size) {
-  SDL_Surface *surface = ::IMG_Load_RW(::SDL_RWFromConstMem(bytes, size), 1);
+SDL_Texture *App::loadPng(SDL_RWops *stream) {
+  SDL_Surface *surface = ::IMG_Load_RW(stream, 1);
   if (surface == nullptr) {
     std::cerr << "IMG_Load_RW: " << ::IMG_GetError() << '\n';
     return nullptr;
@@ -338,13 +355,13 @@ bool App::frame() {
 
 void App::renderSplash() {
   const int x = d_width / 2;
-  const int row = d_height / 8;
-  text("Welcome to Tic Tac Toe", kWhite, x, row);
+  const int row = d_height / kSplashRows;
+  text("Welcome to Tic Tac Toe", kWhite, x, row * kTitleRow);
   text(d_game.computerFirst() ? "Computer first [p,c]" : "Human first [p,c]",
-       kGreen, x, row * 3);
+       kGreen, x, row * kPlayerRow);
   text(d_game.hard() ? "Hard Level [h,e]" : "Easy Level [h,e]", kMagenta, x,
-       row * 4);
-  text("Press the SpaceBar to Play", kWhite, x, row * 7);
+       row * kLevelRow);
+  text("Press the SpaceBar to Play", kWhite, x, row * kPromptRow);
 }
 
 void App::renderBoard() {
@@ -386,10 +403,10 @@ void App::renderResult() {
 void App::drawWinnerLine(const Line &line) {
   const SDL_Rect from = cellRect(line.front());
   const SDL_Rect to = cellRect(line.back());
-  const int x1 = from.x + from.w / 2;
-  const int y1 = from.y + from.h / 2;
-  const int x2 = to.x + to.w / 2;
-  const int y2 = to.y + to.h / 2;
+  const int x1 = from.x + (from.w / 2);
+  const int y1 = from.y + (from.h / 2);
+  const int x2 = to.x + (to.w / 2);
+  const int y2 = to.y + (to.h / 2);
   setColor(kBlue);
   for (int d = -kLineHalfWidth; d <= kLineHalfWidth; ++d) {
     ::SDL_RenderDrawLine(d_renderer, x1 + d, y1 + d, x2 + d, y2 + d);
@@ -403,7 +420,7 @@ void App::text(const std::string &str, SDL_Color color, int x, int y) {
   }
   SDL_Rect dest{0, y, 0, 0};
   ::SDL_QueryTexture(texture, nullptr, nullptr, &dest.w, &dest.h);
-  dest.x = x - dest.w / 2;
+  dest.x = x - (dest.w / 2);
   ::SDL_RenderCopy(d_renderer, texture, nullptr, &dest);
 }
 

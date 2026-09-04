@@ -1,6 +1,11 @@
 #include "ai.h"
 
+#include <cstddef>
 #include <optional>
+#include <random>
+#include <vector>
+
+#include "board.h"
 
 namespace ttt {
 namespace {
@@ -36,8 +41,8 @@ Ai::Ai() : Ai(std::random_device{}()) {}
 Ai::Ai(unsigned seed) : d_rng(seed) {}
 
 int Ai::pick(const std::vector<int> &cells) {
-  std::uniform_int_distribution<size_t> dist(0, cells.size() - 1);
-  return cells[dist(d_rng)];
+  std::uniform_int_distribution<std::size_t> dist(0, cells.size() - 1);
+  return cells.at(dist(d_rng));
 }
 
 Move Ai::randomMove(const Board &board) {

@@ -1,0 +1,11 @@
+---
+# The unit tests: everything in ../.clang-tidy, minus what a test file is
+# made of. Literal boards, seeds and counts are the test data, so no named
+# constants for them; and CHECK has to be a macro to stringify its condition
+# and record __LINE__.
+InheritParentConfig: true
+Checks: >
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-macro-usage,
+  -readability-magic-numbers
+...

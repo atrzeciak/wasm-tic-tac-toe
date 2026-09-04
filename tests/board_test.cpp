@@ -1,11 +1,13 @@
 // Unit tests for the SDL-free game logic. Plain checks, no framework: run by
 // ctest from the native build tree (`make test`).
+#include "board.h"
+
 #include <algorithm>
+#include <cstddef>
 #include <iostream>
 #include <string_view>
 
 #include "ai.h"
-#include "board.h"
 
 namespace {
 
@@ -14,12 +16,16 @@ using ttt::Board;
 using ttt::Line;
 using ttt::Mark;
 
-int failures = 0;
+// Failed CHECKs so far; main() reports the total.
+int &failures() {
+  static int count = 0;
+  return count;
+}
 
 void check(bool ok, const char *expr, int line) {
   if (!ok) {
     std::cerr << __FILE__ << ':' << line << ": CHECK failed: " << expr << '\n';
-    ++failures;
+    ++failures();
   }
 }
 
@@ -29,7 +35,7 @@ void check(bool ok, const char *expr, int line) {
 Board board(std::string_view cells) {
   Board b;
   for (int idx = 0; idx < ttt::kCells; ++idx) {
-    b.set(idx, static_cast<Mark>(cells[static_cast<size_t>(idx)]));
+    b.set(idx, static_cast<Mark>(cells.at(static_cast<std::size_t>(idx))));
   }
   return b;
 }
@@ -167,8 +173,8 @@ int main() {
   testAiTakesLastCell();
   testRandomMoveIsLegal();
   testSeedIsReproducible();
-  if (failures != 0) {
-    std::cerr << failures << " check(s) failed\n";
+  if (failures() != 0) {
+    std::cerr << failures() << " check(s) failed\n";
     return 1;
   }
   std::cout << "all checks passed\n";

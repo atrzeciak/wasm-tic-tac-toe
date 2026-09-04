@@ -1,21 +1,26 @@
 // Unit tests for the game flow in game.h: start-screen settings, turn
 // taking, ignored input and the end of a game. Run by ctest (`make test`).
+#include "game.h"
+
 #include <iostream>
 
 #include "board.h"
-#include "game.h"
 
 namespace {
 
 using ttt::Game;
 using ttt::Mark;
 
-int failures = 0;
+// Failed CHECKs so far; main() reports the total.
+int &failures() {
+  static int count = 0;
+  return count;
+}
 
 void check(bool ok, const char *expr, int line) {
   if (!ok) {
     std::cerr << __FILE__ << ':' << line << ": CHECK failed: " << expr << '\n';
-    ++failures;
+    ++failures();
   }
 }
 
@@ -112,8 +117,8 @@ void testHumanWinEndsGame() {
   }
   CHECK(g.playing());
   CHECK(g.finished());
-  CHECK(
-      !g.humanPlays(g.board().empties().empty() ? 0 : g.board().empties()[0]));
+  CHECK(!g.humanPlays(
+      g.board().empties().empty() ? 0 : g.board().empties().front()));
   CHECK(g.computerTurn() == nullptr);
   const ttt::Result &r = g.result();
   CHECK(r.winner == Mark::Empty ? !r.line.has_value() : r.line.has_value());
@@ -166,8 +171,8 @@ int main() {
   testHumanWinEndsGame();
   testRestartAndQuit();
   testFullGameIsDeterministicForSeed();
-  if (failures != 0) {
-    std::cerr << failures << " check(s) failed\n";
+  if (failures() != 0) {
+    std::cerr << failures() << " check(s) failed\n";
     return 1;
   }
   std::cout << "all checks passed\n";

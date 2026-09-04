@@ -1,9 +1,37 @@
 ---
+# clang-format configuration: Google style, with the choices clang-format
+# would otherwise guess per file pinned, so `make format`, `make lint`, CI and
+# the IDE's format-on-save all produce the same text.
+Language: Cpp
 BasedOnStyle: Google
-IncludeBlocks: Preserve
+Standard: c++17
+ColumnLimit: 80
 IndentWidth: 2
-SortIncludes: true
-Standard: Auto
 TabWidth: 2
 UseTab: Never
+
+# `const char *name`, `const Board &board`: the * and & bind to the name.
+DerivePointerAlignment: false
+PointerAlignment: Right
+
+# Include order, each group sorted and separated by a blank line:
+#   0. the file's own header (board.h in board.cpp and board_test.cpp)
+#   1. C headers: SDL, Emscripten
+#   2. the C++ standard library
+#   3. project headers
+#   4. the generated resource arrays
+IncludeBlocks: Regroup
+SortIncludes: CaseSensitive
+IncludeCategories:
+  - Regex: '^<.*\.h>'
+    Priority: 1
+  - Regex: '^<.*'
+    Priority: 2
+  - Regex: '^"resources/'
+    Priority: 4
+  - Regex: '.*'
+    Priority: 3
+
+InsertNewlineAtEOF: true
+LineEnding: LF
 ...
