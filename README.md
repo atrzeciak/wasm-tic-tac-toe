@@ -60,12 +60,13 @@ Other targets:
 
 ```bash
 make image     # rebuild the devcontainer image (after editing the Dockerfile)
-make lint      # clang-format --dry-run + shellcheck (same as CI)
+make lint      # clang-format --dry-run, shellcheck, py_compile (same as CI)
 make tidy      # clang-tidy against the native compile database (same as CI)
 make format    # clang-format in place
 make includes  # regenerate the embedded-resource headers in every build tree
 make configure # configure the wasm tree from scratch
-make distclean # remove both build trees and dist/
+make clean     # clean the wasm tree
+make distclean # remove every build tree, dist/ and tool caches (fresh checkout)
 ```
 
 Pass `BUILD_TYPE=Debug` to keep DWARF in the `.wasm` and enable

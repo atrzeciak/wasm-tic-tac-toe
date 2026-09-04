@@ -132,9 +132,23 @@ build: configure-wasm
 clean:
 	$(RUN) cmake --build $(WORKAREA)/$(CMAKE_BUILD_DIR) --verbose --target clean
 
+# Back to a fresh checkout: every build tree, dist/ and the tool caches that
+# .gitignore lists (python, clangd). Per-user files (.vscode/settings.json,
+# *.code-workspace, .devcontainer/.env) are left alone.
+# The IDE's CMake Tools names its trees after the kit (cmake-bld-<kit>.local,
+# e.g. "cmake-bld-GCC 13.3.0 x86_64.local" after a kit scan), so glob rather
+# than list the two trees make creates. The glob is expanded by the shell that
+# runs the rm: in the container the paths exist, and glob matches stay single
+# words even when the kit name has spaces.
+DISTCLEAN_DIRS:=cmake-bld-*.local cmake-build-* build out dist \
+  .mypy_cache .ruff_cache .pytest_cache .cache .clangd
+DISTCLEAN_FILES:=compile_commands.json CMakeUserPresets.json
+
 .PHONY: distclean
 distclean:
-	$(RUN) rm -rf $(WORKAREA)/$(CMAKE_BUILD_DIR) $(WORKAREA)/$(NATIVE_BUILD_DIR) $(WORKAREA)/dist
+	$(RUN) sh -c 'cd $(WORKAREA) && rm -rf $(DISTCLEAN_DIRS) $(DISTCLEAN_FILES) \
+	  && find . -path ./.git -prune -o \( -name __pycache__ -o -name "*.py[cod]" \) -print0 \
+	     | xargs -0 rm -rf'
 
 # ---- native ----------------------------------------------------------------
 
