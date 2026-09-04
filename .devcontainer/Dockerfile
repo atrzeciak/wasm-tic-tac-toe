@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
+FROM mcr.microsoft.com/devcontainers/cpp:2-ubuntu-24.04
 
 # python3 runs scripts/convert.py during the build (see CMakeLists.txt) and
 # is what emsdk uses on Linux.
